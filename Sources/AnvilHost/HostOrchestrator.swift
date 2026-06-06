@@ -213,7 +213,7 @@ public actor HostOrchestrator {
         }
         
         // Install LaunchAgent
-        let plist = URL(fileURLWithPath: "/Users/vishalsingh/Documents/v-i-s-h-a-l/swiftanvil/swiftanvil-anvil-host/launchd/com.swiftanvil.anvil-host.plist")
+        let plist = ProjectPaths.launchAgentPlist
         do {
             try HostProvisioning.shared.install(agentPlistSource: plist)
             details["launchagent"] = "installed"
@@ -270,7 +270,7 @@ public actor HostOrchestrator {
     }
     
     private func executeInstallSystemWide() async throws -> HostActionResult {
-        let source = "/Users/vishalsingh/Documents/v-i-s-h-a-l/swiftanvil/swiftanvil-anvil-host/.build/release/anvil-host"
+        let source = ProjectPaths.releaseBinary
         let destination = "/usr/local/bin/anvil-host"
         
         let (_, mkdirErr, mkdirStatus) = shell("/bin/mkdir", ["-p", "/usr/local/bin"])
