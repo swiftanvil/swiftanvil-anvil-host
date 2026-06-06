@@ -1,5 +1,11 @@
 # swiftanvil-anvil-host
 
+> **Launch your AI agent and say: "Set up this Mac as a CI worker."**
+>
+> That's it. The agent handles everything else — detecting state, installing tools, configuring the system, and asking you only for what's needed.
+
+---
+
 Kitchen-setup service that turns a Mac into a hands-off CI worker for SwiftAnvil.
 
 ## Overview
@@ -19,7 +25,30 @@ Kitchen-setup service that turns a Mac into a hands-off CI worker for SwiftAnvil
 - [Tailscale](https://tailscale.com) installed and logged in
 - Xcode Command Line Tools
 
-## Quick Start
+## Quick Start — AI Agent Mode (Recommended)
+
+This repository is designed to be operated by an AI agent. You don't need to know commands.
+
+**Step 1:** Clone this repository
+
+```bash
+git clone https://github.com/swiftanvil/swiftanvil-anvil-host.git
+cd swiftanvil-anvil-host
+```
+
+**Step 2:** Launch your AI agent (Claude Code, Codex, Kimi, etc.)
+
+**Step 3:** Paste this prompt:
+
+```
+Set up this Mac as a CI worker.
+```
+
+That's it. The agent reads the repository instructions, detects the machine state, and guides you through the rest — asking only for things it needs from you (like confirming sudo access).
+
+## Quick Start — Manual Mode
+
+If you prefer to run commands yourself:
 
 ```bash
 git clone <repo> swiftanvil-anvil-host

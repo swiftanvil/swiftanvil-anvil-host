@@ -1,323 +1,51 @@
 # Agent Instructions — AnvilHost
 
-> **For AI Agents:** This file is your primary guide. Read it fully before taking action. It contains state detection, progressive workflows, safety rules, and handoff patterns.
+> **For AI Agents:** This file is your control program. Read it, then execute.
 
-## What This Repository Does
+## Mission
 
-AnvilHost turns a Mac into a hands-off CI worker. It installs a LaunchAgent to keep `anvil-runner` alive across reboots, configures power policy (no sleep, auto-restart), verifies Tailscale, runs a background cleanup daemon, and **manages required tools** (install, update, auto-detect).
+Turn this Mac into a hands-off CI worker. Install LaunchAgent, configure power policy, verify Tailscale, start cleanup daemons, manage tools.
 
-**It does NOT:**
-- Download or configure GitHub Actions runners (that's `swiftanvil-anvil-runner`)
-- Build or test code
-- Manage runner tokens or repository registration
-
-**Prerequisites:**
-- macOS 14+ on Apple Silicon
-- `swiftanvil-anvil-runner` cloned nearby (sibling directory)
-
-> **Note:** Xcode Command Line Tools, Homebrew, Git, Swift, and Tailscale are now **auto-installed** during provisioning if missing.
-
-## Current State Detection
-
-When you open this repository, detect the current state:
+## What You Must Do First
 
 ```bash
-# Check if binary is built
-ls .build/release/anvil-host 2>/dev/null && echo "built" || echo "not built"
-
-# Check if installed system-wide
-ls /usr/local/bin/anvil-host 2>/dev/null && echo "installed" || echo "not installed"
-
-# Check LaunchAgent status
-ls ~/Library/LaunchAgents/com.swiftanvil.anvil-runner.plist 2>/dev/null && echo "launchagent installed" || echo "no launchagent"
-launchctl list | grep com.swiftanvil.anvil-runner && echo "launchagent loaded" || echo "launchagent not loaded"
-
-# Check Tailscale
-/Applications/Tailscale.app/Contents/MacOS/Tailscale status 2>/dev/null && echo "tailscale ok" || echo "tailscale not running"
-
-# Check power policy
-pmset -g | grep -E "sleep|autorestart" | head -5
-
-# Check disk usage
-df -h / | tail -1 | awk '{print "Disk: " $5 " used"}'
+swift build -c release 2>/dev/null || swift build
+./.build/release/anvil-host
 ```
 
-## What You Can Do Here — Progressive Options
+The binary will tell you the current state and what actions are available. Do not guess — always run this first.
 
-### State: Fresh Clone (nothing built)
+## How to Execute Actions
 
-**Option 1: Build the project**
-> "Build anvil-host"
 ```bash
-swift build -c release
+./.build/release/anvil-host agent <action-id>
 ```
 
-**Option 2: Run health checks without installing**
-> "Check if this Mac is ready"
-```bash
-swift run anvil-host doctor
-```
+Available action IDs depend on current state. The binary lists them. Common ones:
+- `doctor` — health checks
+- `provision` — full setup (requires sudo, will prompt for confirmation)
+- `status` — show host health
+- `tools-update` — update managed tools
 
-**Option 3: Check tool status**
-> "What tools are installed and what needs updates?"
-```bash
-swift run anvil-host tools check
-```
+## Rules
 
-**Option 4: See what would change (dry run)**
-> "Show me what provisioning would do"
-```bash
-swift run anvil-host status
-```
+- **Never** run `provision` without asking the user first. It requires sudo and changes system settings.
+- **Always** run the binary with no args before making decisions. State changes after every action.
+- **Do not** store tokens in this repo. Runner tokens belong in `swiftanvil-anvil-runner`.
+- If `swiftanvil-anvil-runner` exists nearby, suggest moving there after host is provisioned.
 
----
+## State Reference
 
-### State: Built (binary exists)
+| State | Meaning | What to do |
+|-------|---------|-----------|
+| `fresh-clone` | Not built | `swift build -c release` |
+| `built` | Binary ready, not provisioned | `agent doctor`, then `agent provision` |
+| `provisioned` | Host ready | `agent status`, or move to runner repo |
+| `production-ready` | Installed system-wide | Same as provisioned |
 
-**Option 1: Full provision (one-time setup)**
-> "Set up this Mac as a CI worker"
-> ⚠️ Requires: `sudo` for power policy changes
-```bash
-sudo .build/release/anvil-host provision
-```
-> This auto-installs missing tools (Xcode CLT, Homebrew, Git, Swift, Tailscale), installs the LaunchAgent, configures power policy, verifies Tailscale, and starts the cleanup and update daemons.
+## Handoff
 
-**Option 2: Run health checks**
-> "Is this Mac ready for CI?"
-```bash
-.build/release/anvil-host doctor
-```
-
-**Option 3: Install missing tools only**
-> "Install missing critical tools without full provisioning"
-```bash
-.build/release/anvil-host tools install
-```
-
-**Option 4: Update tools**
-> "Update all tools with available updates"
-```bash
-.build/release/anvil-host tools update
-```
-
-**Option 5: Install system-wide**
-> "Install anvil-host to /usr/local/bin"
-```bash
-sudo mkdir -p /usr/local/bin
-sudo cp .build/release/anvil-host /usr/local/bin/
-sudo chmod +x /usr/local/bin/anvil-host
-```
-
----
-
-### State: Provisioned (LaunchAgent installed)
-
-**Option 1: Check status**
-> "Is everything running?"
-```bash
-anvil-host status
-```
-
-**Option 2: Re-provision (idempotent)**
-> "Re-run provisioning"
-```bash
-sudo anvil-host provision
-```
-
-**Option 3: Uninstall**
-> "Remove all host configuration"
-```bash
-sudo anvil-host uninstall
-```
-
----
-
-### State: Installed + Provisioned (production ready)
-
-**Option 1: Set up runners**
-> "Now install anvil-runner"
-> This delegates to `swiftanvil-anvil-runner`
-```bash
-cd ../swiftanvil-anvil-runner
-swift build -c release
-export ANVIL_RUNNER_TOKEN=<token>
-.build/release/anvil-runner setup --repo https://github.com/<org>/<repo> --count 2
-.build/release/anvil-runner start --count 2
-```
-
-**Option 2: Verify auto-start works**
-> "Test reboot recovery"
-```bash
-# Simulate: the LaunchAgent will restart anvil-runner on boot
-# Verify it's configured:
-launchctl list | grep com.swiftanvil.anvil-runner
-```
-
-**Option 3: Monitor disk**
-> "Check if cleanup daemon is working"
-```bash
-anvil-host status
-# Look for disk usage and daemon state
-```
-
----
-
-## Common Workflows
-
-### Workflow: New Mac Mini Setup (Physical Access)
-```bash
-# 1. Clone both repositories
-git clone https://github.com/swiftanvil/swiftanvil-anvil-host.git
-git clone https://github.com/swiftanvil/swiftanvil-anvil-runner.git
-
-# 2. Build and provision host
-cd swiftanvil-anvil-host
-swift build -c release
-sudo .build/release/anvil-host provision
-
-# 3. Build and set up runner
-cd ../swiftanvil-anvil-runner
-swift build -c release
-export ANVIL_RUNNER_TOKEN=<token>
-.build/release/anvil-runner setup --repo https://github.com/<org>/<repo> --count 2
-.build/release/anvil-runner start --count 2
-
-# 4. Verify
-.build/release/anvil-runner status --count 2
-
-# 5. Walk away. Machine will survive reboots.
-```
-
-### Workflow: Remote Health Check (After Physical Setup)
-```bash
-# SSH via Tailscale
-ssh user@macmini-tailscale-name
-
-# Check host status
-anvil-host status
-
-# Check runner status
-cd ~/swiftanvil-anvil-runner
-.build/release/anvil-runner status --count 2
-```
-
-### Workflow: Disk Emergency
-```bash
-# If disk is full, cleanup daemon should trigger automatically
-# Manual intervention:
-anvil-host status
-sudo anvil-host provision  # re-applies everything, restarts daemon
-cd ~/swiftanvil-anvil-runner
-.build/release/anvil-runner clean --aggressive
-```
-
-### Workflow: Update Tools
-```bash
-# Check for available updates
-anvil-host tools check
-
-# Update all tools
-anvil-host tools update
-
-# Update only critical tools (safer)
-anvil-host tools update-critical
-
-# Check status after update
-anvil-host status
-```
-
-### Workflow: Tool Recovery (Missing Tool After OS Update)
-```bash
-# macOS update sometimes removes/replaces tools
-# Check what's missing:
-anvil-host doctor
-
-# Re-install missing critical tools:
-anvil-host tools install
-
-# Or full re-provision (idempotent):
-sudo anvil-host provision
-```
-
----
-
-## Handoff Notes
-
-After any action, report:
-1. **What was done** (commands executed, outputs)
-2. **Current state** (provisioned? running? disk usage?)
-3. **Next options** (based on new state)
-
-Example handoff after provisioning:
-> ✅ Host provisioned successfully.
->
-> **What was done:**
-> - LaunchAgent installed at `~/Library/LaunchAgents/com.swiftanvil.anvil-runner.plist`
-> - Power policy: sleep disabled, auto-restart on power loss enabled
-> - Cleanup daemon: running, triggers at 85% disk usage
-> - Tailscale: verified running
->
-> **Current state:** Host is ready. No runners configured yet.
->
-> **Next options:**
-> 1. **Set up anvil-runner** — Configure GitHub Actions runners (requires token)
-> 2. **Reboot test** — Verify auto-start works after restart
-> 3. **Check status anytime** — `anvil-host status`
-
-Example handoff after runner setup:
-> ✅ Runners configured and running.
->
-> **What was done:**
-> - 2 runners registered with GitHub for `org/repo`
-> - Runners are processing jobs
->
-> **Current state:** Fully operational CI worker.
->
-> **Next options:**
-> 1. **Monitor remotely** — SSH via Tailscale, run `anvil-host status`
-> 2. **Add more runners** — `anvil-runner setup --count 4`
-> 3. **Set up another Mac** — Clone repos, run `anvil-host provision`
-
----
-
-## Safety Rules
-
-- **Provisioning requires `sudo`** for power policy changes. Never run with sudo unless necessary.
-- **LaunchAgent runs as the current user** — do not require root for normal operation.
-- **Cleanup daemon never deletes protected paths** — see `anvil-runner` safety policy.
-- **Idempotence** — `provision` can be run multiple times safely.
-- **Uninstall reverses all changes** — removes LaunchAgent, resets power policy, stops daemons.
-- **Do not store tokens in this repository** — runner tokens belong in `swiftanvil-anvil-runner`.
-- **Tool auto-install is conservative** — only critical tools are auto-installed during provision.
-- **Tool updates require explicit action** — use `anvil-host tools update` or enable auto-update in LaunchAgent.
-
-## Related Repositories
-
-| Repository | Role | When to Use |
-|------------|------|-------------|
-| `swiftanvil-anvil-runner` | Runner lifecycle | Download, configure, start, stop, clean runners |
-| `swiftanvil-anvil-host` | Host provisioning | This repo — auto-start, power, cleanup, Tailscale |
-| `swiftanvil-anvil-fleet` | Multi-machine (future) | Orchestrate many hosts |
-
-## Managed Tools
-
-The following tools are automatically managed:
-
-| Tool | Critical | Install Method | Update Method | Auto-Install |
-|------|----------|----------------|---------------|--------------|
-| Xcode Command Line Tools | Yes | `xcode-select --install` | `softwareupdate` | Yes |
-| Homebrew | Yes | Install script | N/A | Yes |
-| Git | Yes | Homebrew | Homebrew | Yes |
-| Swift | Yes | Xcode CLT | `softwareupdate` | Yes |
-| Tailscale | Yes | Homebrew Cask | Homebrew | Yes |
-| Rosetta 2 | No | `softwareupdate` | N/A | No |
-
-## Review Focus
-
-Every substantive change should be reviewed for:
-- LaunchAgent correctness (plist syntax, paths, permissions)
-- Power policy safety (does not brick the machine)
-- Cleanup daemon boundedness (cannot runaway)
-- Tool install/update safety (does not break existing installations)
-- Idempotence of provision/uninstall cycles
-- Separation from runner lifecycle concerns
+After `provision` succeeds, report:
+1. What was done (LaunchAgent, power policy, daemons)
+2. Current state
+3. Next step: set up runners in `swiftanvil-anvil-runner`
