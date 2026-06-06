@@ -220,7 +220,7 @@ struct AnvilHostCLI {
                 results["tailscale_login_url"] = url
                 errors.append("Tailscale: \(authError)")
                 // Optionally open the login URL on macOS.
-                if !jsonMode {
+                if !json {
                     print("🔗 Opening Tailscale login URL: \(url)")
                     _ = shell("/usr/bin/open", [url])
                 }
