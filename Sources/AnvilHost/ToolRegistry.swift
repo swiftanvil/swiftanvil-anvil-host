@@ -120,12 +120,12 @@ public struct ToolRegistry: Sendable {
             Tool(
                 name: "tailscale",
                 description: "Tailscale VPN",
-                checkCommand: ("/Applications/Tailscale.app/Contents/MacOS/Tailscale", ["version"]),
+                checkCommand: ("/opt/homebrew/bin/tailscale", ["version"]),
                 parseVersion: { output in
                     output.trimmingCharacters(in: .whitespacesAndNewlines)
                         .split(separator: "\n").first.map(String.init)
                 },
-                installMethod: .homebrewCask(cask: "tailscale"),
+                installMethod: .homebrewCask(cask: "tailscale-app"),
                 updateMethod: .homebrew,
                 isCritical: true
             ),
