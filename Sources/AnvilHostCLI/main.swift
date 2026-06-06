@@ -8,9 +8,31 @@ struct AnvilHostCLI {
         let jsonMode = args.contains("--json")
         let cleanArgs = args.filter { $0 != "--json" }
 
-        guard let command = cleanArgs.first else {
-            printUsage()
+        // Auto-build detection: if binary is missing, guide the agent
+        let binaryPath = "/Users/vishalsingh/Documents/v-i-s-h-a-l/swiftanvil/swiftanvil-anvil-host/.build/release/anvil-host"
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: binaryPath) {
+            if jsonMode {
+                printJSON([
+                    "error": "Binary not built",
+                    "action_required": "Run 'swift build -c release' to build the project",
+                    "current_state": "fresh-clone"
+                ])
+            } else {
+                print("📦 Binary not built yet.")
+                print("")
+                print("To get started, run:")
+                print("  swift build -c release")
+                print("")
+                print("Then re-run this command to see available actions.")
+            }
             exit(1)
+        }
+
+        guard let command = cleanArgs.first else {
+            // Agent-native mode: show current state and available actions
+            await printAgentNativeState(json: jsonMode)
+            return
         }
 
         switch command {
@@ -24,6 +46,8 @@ struct AnvilHostCLI {
             await runUninstall(json: jsonMode)
         case "tools":
             await runTools(args: Array(cleanArgs.dropFirst()), json: jsonMode)
+        case "agent", "orchestrator":
+            await runAgentMode(args: Array(cleanArgs.dropFirst()), json: jsonMode)
         case "help", "--help", "-h":
             printUsage()
         default:
@@ -33,27 +57,137 @@ struct AnvilHostCLI {
         }
     }
 
+    // MARK: - Agent-Native State Display
+
+    private static func printAgentNativeState(json: Bool) async {
+        let orchestrator = HostOrchestrator.shared
+        let snapshot = await orchestrator.currentState()
+
+        if json {
+            printJSON(snapshot.toJSON())
+        } else {
+            print(await orchestrator.whatCanIDo())
+            print("")
+            print("Run 'anvil-host agent <action-id>' to execute an action.")
+            print("Run 'anvil-host help' for traditional CLI commands.")
+        }
+    }
+
+    // MARK: - Agent Mode
+
+    private static func runAgentMode(args: [String], json: Bool) async {
+        guard let actionID = args.first else {
+            // No action specified — show state
+            await printAgentNativeState(json: json)
+            return
+        }
+
+        let orchestrator = HostOrchestrator.shared
+        let snapshot = await orchestrator.currentState()
+
+        guard let action = snapshot.availableActions.first(where: { $0.id == actionID }) else {
+            let result = HostActionResult(
+                actionID: actionID,
+                success: false,
+                message: "Action '\(actionID)' is not available from state '\(snapshot.state.description)'. " +
+                         "Available actions: \(snapshot.availableActions.map(\.id).joined(separator: ", "))"
+            )
+            if json {
+                printJSON(result.toJSON())
+            } else {
+                print("❌ \(result.message)")
+            }
+            exit(1)
+        }
+
+        // Parse parameters from remaining args (--key value)
+        var parameters: [String: String] = [:]
+        var i = 1
+        while i < args.count {
+            let arg = args[i]
+            if arg.hasPrefix("--"), i + 1 < args.count {
+                let key = String(arg.dropFirst(2))
+                parameters[key] = args[i + 1]
+                i += 2
+            } else {
+                i += 1
+            }
+        }
+
+        // Confirm destructive actions
+        if action.requiresConfirmation && !json {
+            print("⚠️  Action '\(action.name)' requires confirmation.")
+            print("   \(action.description)")
+            print("   Type 'yes' to proceed: ", terminator: "")
+            guard let response = readLine()?.lowercased(), response == "yes" else {
+                print("Cancelled.")
+                exit(0)
+            }
+        }
+
+        let result = await orchestrator.execute(actionID: actionID, parameters: parameters)
+
+        if json {
+            printJSON(result.toJSON())
+        } else {
+            if result.success {
+                print("✅ \(result.message)")
+            } else {
+                print("❌ \(result.message)")
+            }
+            if !result.details.isEmpty {
+                print("")
+                for (key, value) in result.details {
+                    print("  \(key): \(value)")
+                }
+            }
+            if let newState = result.newState {
+                print("")
+                print("New state: \(newState.description)")
+                let newSnapshot = await orchestrator.currentState()
+                let nextActions = newSnapshot.availableActions
+                if !nextActions.isEmpty {
+                    print("Next available actions:")
+                    for a in nextActions {
+                        print("  • \(a.id) — \(a.name)")
+                    }
+                }
+            }
+        }
+
+        exit(result.success ? 0 : 1)
+    }
+
+    // MARK: - Traditional Commands
+
     private static func printUsage() {
         print("""
-        anvil-host <command> [--json]
+        anvil-host — AI-native host provisioning for macOS CI workers
 
-        Commands:
-          provision    Full setup (LaunchAgent, Tailscale, power policy, tools)
-          doctor       Run readiness checks
-          status       Show host health
-          tools        Manage required tools (see below)
-          uninstall    Remove everything
-          help         Show this message
+        AGENT-NATIVE MODE (default):
+          anvil-host                    Show current state and available actions
+          anvil-host agent <action>     Execute an action by ID
 
-        Tool Management:
-          tools check              Check all tool statuses
-          tools install            Install missing critical tools
-          tools install-all        Install all missing tools
-          tools update             Update tools with available updates
-          tools update-critical    Update only critical tools
+        ACTIONS:
+          agent build                   Build the project
+          agent doctor                  Run health checks
+          agent tools-check             Check tool status
+          agent provision               Full host setup (requires sudo)
+          agent tools-install           Install missing critical tools
+          agent tools-update            Update all tools
+          agent install-system-wide     Install binary to /usr/local/bin
+          agent status                  Show host status
+          agent uninstall               Remove all configuration
 
-        Options:
-          --json       Output machine-readable JSON for agent consumption
+        TRADITIONAL COMMANDS:
+          provision                     Full setup
+          doctor                        Run readiness checks
+          status                        Show host health
+          tools                         Manage required tools
+          uninstall                     Remove everything
+
+        OPTIONS:
+          --json                        Output machine-readable JSON
         """)
     }
 
