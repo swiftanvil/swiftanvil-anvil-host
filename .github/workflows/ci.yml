@@ -51,4 +51,6 @@ jobs:
         run: |
           # Build release binary explicitly; the CLI checks for .build/release/anvil-host
           swift build -c release
+          ls -la .build/release/anvil-host || true
+          ls -la .build/debug/anvil-host || true
           .build/release/anvil-host help
