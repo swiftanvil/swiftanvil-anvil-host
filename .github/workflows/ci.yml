@@ -48,4 +48,7 @@ jobs:
 
       - name: CLI smoke
         working-directory: swiftanvil-anvil-host
-        run: swift run anvil-host help
+        run: |
+          # Build release binary explicitly; the CLI checks for .build/release/anvil-host
+          swift build -c release
+          .build/release/anvil-host help
