@@ -49,8 +49,7 @@ jobs:
       - name: CLI smoke
         working-directory: swiftanvil-anvil-host
         run: |
-          # Build release binary explicitly; the CLI checks for .build/release/anvil-host
+          # Force a clean release build so ProjectPaths picks up the current source.
+          swift package clean
           swift build -c release
-          ls -la .build/release/anvil-host || true
-          ls -la .build/debug/anvil-host || true
           .build/release/anvil-host help
