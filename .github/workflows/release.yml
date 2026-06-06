@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'anvil-host-*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and release anvil-host
+    runs-on: [self-hosted, macOS, ARM64]
+    steps:
+      - name: Checkout anvil-host
+        uses: actions/checkout@v6
+        with:
+          path: swiftanvil-anvil-host
+
+      - name: Checkout anvil-runner sibling
+        uses: actions/checkout@v6
+        with:
+          repository: swiftanvil/swiftanvil-anvil-runner
+          path: swiftanvil-anvil-runner
+
+      - name: Select Swift 6 toolchain
+        run: |
+          if [ -d /Applications/Xcode_16.2.app ]; then
+            sudo xcode-select -s /Applications/Xcode_16.2.app
+          fi
+
+      - name: Build universal binary
+        working-directory: swiftanvil-anvil-host
+        run: |
+          swift build -c release --arch arm64
+          # TODO: add x86_64 when cross-compilation is tested
+          cp .build/release/anvil-host ../anvil-host
+
+      - name: Create GitHub Release
+        working-directory: swiftanvil-anvil-host
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#anvil-host-}"
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "anvil-host ${VERSION}" \
+            --generate-notes \
+            ../anvil-host

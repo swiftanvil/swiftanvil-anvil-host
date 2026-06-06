@@ -50,13 +50,24 @@ That's it. The agent reads the repository instructions, detects the machine stat
 
 If you prefer to run commands yourself:
 
+### Option 1: Pre-built binary (fastest)
+
+```bash
+curl -sL https://raw.githubusercontent.com/swiftanvil/swiftanvil-anvil-host/main/Scripts/install.sh | bash
+sudo anvil-host provision
+```
+
+This downloads the latest release binary from GitHub, installs it to `/usr/local/bin`, and is ready to run.
+
+### Option 2: Build from source
+
 ```bash
 git clone <repo> swiftanvil-anvil-host
 cd swiftanvil-anvil-host
-./Scripts/install.sh
+swift build -c release
+sudo cp .build/release/anvil-host /usr/local/bin/
+sudo anvil-host provision
 ```
-
-The install script builds the release binary, copies it to `/usr/local/bin`, and runs `anvil-host provision`.
 
 ## CLI
 
