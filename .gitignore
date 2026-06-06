@@ -1,0 +1,15 @@
+# Swift build artifacts
+.build/
+*.xcodeproj
+*.xcworkspace
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.swp
