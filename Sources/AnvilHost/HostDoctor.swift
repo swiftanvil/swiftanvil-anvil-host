@@ -4,6 +4,12 @@ public struct HostCheck: Sendable {
     public let name: String
     public let passed: Bool
     public let message: String
+    
+    public init(name: String, passed: Bool, message: String) {
+        self.name = name
+        self.passed = passed
+        self.message = message
+    }
 }
 
 public struct HostDoctor: Sendable {
