@@ -4,7 +4,7 @@
 
 ## What This Repository Does
 
-AnvilHost turns a Mac into a hands-off CI worker. It installs a LaunchAgent to keep `anvil-runner` alive across reboots, configures power policy (no sleep, auto-restart), verifies Tailscale, and runs a background cleanup daemon.
+AnvilHost turns a Mac into a hands-off CI worker. It installs a LaunchAgent to keep `anvil-runner` alive across reboots, configures power policy (no sleep, auto-restart), verifies Tailscale, runs a background cleanup daemon, and **manages required tools** (install, update, auto-detect).
 
 **It does NOT:**
 - Download or configure GitHub Actions runners (that's `swiftanvil-anvil-runner`)
@@ -13,9 +13,9 @@ AnvilHost turns a Mac into a hands-off CI worker. It installs a LaunchAgent to k
 
 **Prerequisites:**
 - macOS 14+ on Apple Silicon
-- Xcode Command Line Tools installed
-- Tailscale installed and logged in
 - `swiftanvil-anvil-runner` cloned nearby (sibling directory)
+
+> **Note:** Xcode Command Line Tools, Homebrew, Git, Swift, and Tailscale are now **auto-installed** during provisioning if missing.
 
 ## Current State Detection
 
@@ -58,7 +58,13 @@ swift build -c release
 swift run anvil-host doctor
 ```
 
-**Option 3: See what would change (dry run)**
+**Option 3: Check tool status**
+> "What tools are installed and what needs updates?"
+```bash
+swift run anvil-host tools check
+```
+
+**Option 4: See what would change (dry run)**
 > "Show me what provisioning would do"
 ```bash
 swift run anvil-host status
@@ -74,7 +80,7 @@ swift run anvil-host status
 ```bash
 sudo .build/release/anvil-host provision
 ```
-> This installs the LaunchAgent, configures power policy, verifies Tailscale, and starts the cleanup daemon.
+> This auto-installs missing tools (Xcode CLT, Homebrew, Git, Swift, Tailscale), installs the LaunchAgent, configures power policy, verifies Tailscale, and starts the cleanup and update daemons.
 
 **Option 2: Run health checks**
 > "Is this Mac ready for CI?"
@@ -82,7 +88,19 @@ sudo .build/release/anvil-host provision
 .build/release/anvil-host doctor
 ```
 
-**Option 3: Install system-wide**
+**Option 3: Install missing tools only**
+> "Install missing critical tools without full provisioning"
+```bash
+.build/release/anvil-host tools install
+```
+
+**Option 4: Update tools**
+> "Update all tools with available updates"
+```bash
+.build/release/anvil-host tools update
+```
+
+**Option 5: Install system-wide**
 > "Install anvil-host to /usr/local/bin"
 ```bash
 sudo mkdir -p /usr/local/bin
@@ -193,6 +211,34 @@ cd ~/swiftanvil-anvil-runner
 .build/release/anvil-runner clean --aggressive
 ```
 
+### Workflow: Update Tools
+```bash
+# Check for available updates
+anvil-host tools check
+
+# Update all tools
+anvil-host tools update
+
+# Update only critical tools (safer)
+anvil-host tools update-critical
+
+# Check status after update
+anvil-host status
+```
+
+### Workflow: Tool Recovery (Missing Tool After OS Update)
+```bash
+# macOS update sometimes removes/replaces tools
+# Check what's missing:
+anvil-host doctor
+
+# Re-install missing critical tools:
+anvil-host tools install
+
+# Or full re-provision (idempotent):
+sudo anvil-host provision
+```
+
 ---
 
 ## Handoff Notes
@@ -240,9 +286,10 @@ Example handoff after runner setup:
 - **LaunchAgent runs as the current user** — do not require root for normal operation.
 - **Cleanup daemon never deletes protected paths** — see `anvil-runner` safety policy.
 - **Idempotence** — `provision` can be run multiple times safely.
-- **Uninstall reverses all changes** — removes LaunchAgent, resets power policy, stops daemon.
+- **Uninstall reverses all changes** — removes LaunchAgent, resets power policy, stops daemons.
 - **Do not store tokens in this repository** — runner tokens belong in `swiftanvil-anvil-runner`.
-- **Tailscale is assumed pre-installed** — do not attempt to install Tailscale; verify only.
+- **Tool auto-install is conservative** — only critical tools are auto-installed during provision.
+- **Tool updates require explicit action** — use `anvil-host tools update` or enable auto-update in LaunchAgent.
 
 ## Related Repositories
 
@@ -252,11 +299,25 @@ Example handoff after runner setup:
 | `swiftanvil-anvil-host` | Host provisioning | This repo — auto-start, power, cleanup, Tailscale |
 | `swiftanvil-anvil-fleet` | Multi-machine (future) | Orchestrate many hosts |
 
+## Managed Tools
+
+The following tools are automatically managed:
+
+| Tool | Critical | Install Method | Update Method | Auto-Install |
+|------|----------|----------------|---------------|--------------|
+| Xcode Command Line Tools | Yes | `xcode-select --install` | `softwareupdate` | Yes |
+| Homebrew | Yes | Install script | N/A | Yes |
+| Git | Yes | Homebrew | Homebrew | Yes |
+| Swift | Yes | Xcode CLT | `softwareupdate` | Yes |
+| Tailscale | Yes | Homebrew Cask | Homebrew | Yes |
+| Rosetta 2 | No | `softwareupdate` | N/A | No |
+
 ## Review Focus
 
 Every substantive change should be reviewed for:
 - LaunchAgent correctness (plist syntax, paths, permissions)
 - Power policy safety (does not brick the machine)
 - Cleanup daemon boundedness (cannot runaway)
+- Tool install/update safety (does not break existing installations)
 - Idempotence of provision/uninstall cycles
 - Separation from runner lifecycle concerns
