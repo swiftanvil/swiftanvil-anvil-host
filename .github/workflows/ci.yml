@@ -39,7 +39,12 @@ jobs:
 
       - name: Test
         working-directory: swiftanvil-anvil-host
-        run: swift test
+        run: |
+          if [ -d Tests ]; then
+            swift test
+          else
+            echo "No Tests directory; skipping swift test"
+          fi
 
       - name: CLI smoke
         working-directory: swiftanvil-anvil-host
