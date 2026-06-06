@@ -2,12 +2,15 @@ import Foundation
 
 public enum PowerPolicyError: Error, CustomStringConvertible {
     case pmsetFailed(Int32, String)
+    case sudoUnavailable(String)
     case caffeinateFailed(Int32, String)
 
     public var description: String {
         switch self {
         case .pmsetFailed(let code, let msg):
             return "pmset failed (exit \(code)): \(msg)"
+        case .sudoUnavailable(let msg):
+            return "sudo unavailable: \(msg)"
         case .caffeinateFailed(let code, let msg):
             return "caffeinate failed (exit \(code)): \(msg)"
         }
@@ -30,7 +33,7 @@ public struct PowerPolicy: Sendable {
         ]
 
         for (key, value) in settings {
-            let (_, err, status) = shell("/usr/bin/pmset", [key, value])
+            let (_, err, status) = try runPMSet(key: key, value: value)
             guard status == 0 else {
                 throw PowerPolicyError.pmsetFailed(status, err)
             }
@@ -48,7 +51,7 @@ public struct PowerPolicy: Sendable {
         ]
 
         for (key, value) in settings {
-            let (_, err, status) = shell("/usr/bin/pmset", [key, value])
+            let (_, err, status) = try runPMSet(key: key, value: value)
             guard status == 0 else {
                 throw PowerPolicyError.pmsetFailed(status, err)
             }
@@ -67,6 +70,26 @@ public struct PowerPolicy: Sendable {
             }
         }
         return result
+    }
+
+    // MARK: - Helpers
+
+    private func runPMSet(key: String, value: String) throws -> (stdout: String, stderr: String, status: Int32) {
+        // First try without sudo (useful when already running as root or when
+        // pmset does not require elevation on this macOS version).
+        let direct = shell("/usr/bin/pmset", [key, value])
+        if direct.status == 0 {
+            return direct
+        }
+
+        // Fall back to sudo, which supports SUDO_PASSWORD in headless environments.
+        guard SudoRunner.isAvailable else {
+            throw PowerPolicyError.sudoUnavailable(
+                "pmset requires root privileges. Run interactively with sudo or set SUDO_PASSWORD."
+            )
+        }
+
+        return try SudoRunner.run("/usr/bin/pmset", arguments: [key, value])
     }
 }
 
