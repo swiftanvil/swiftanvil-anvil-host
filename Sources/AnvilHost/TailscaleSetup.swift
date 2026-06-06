@@ -26,18 +26,30 @@ public struct TailscaleSetup: Sendable {
     private init() {}
 
     public var isInstalled: Bool {
-        FileManager.default.fileExists(atPath: appPath)
+        // Check both app bundle and Homebrew CLI installations
+        FileManager.default.fileExists(atPath: appPath) ||
+        FileManager.default.fileExists(atPath: "/opt/homebrew/bin/tailscale") ||
+        FileManager.default.fileExists(atPath: "/usr/local/bin/tailscale")
     }
 
     public var isRunning: Bool {
-        let (_, _, status) = shell("/usr/bin/pgrep", ["-x", "Tailscale"])
-        return status == 0
+        // Check for GUI app process or CLI daemon
+        let (_, _, guiStatus) = shell("/usr/bin/pgrep", ["-x", "Tailscale"])
+        if guiStatus == 0 { return true }
+        let (_, _, cliStatus) = shell("/opt/homebrew/bin/tailscale", ["status"])
+        return cliStatus == 0
     }
 
     public var version: String? {
-        let (out, _, status) = shell(cliPath, ["version"])
-        guard status == 0 else { return nil }
-        return out.split(separator: "\n").first.map(String.init)?.trimmingCharacters(in: .whitespaces)
+        // Try app bundle CLI first, then Homebrew CLI
+        let paths = [cliPath, "/opt/homebrew/bin/tailscale", "/usr/local/bin/tailscale"]
+        for path in paths {
+            guard FileManager.default.fileExists(atPath: path) else { continue }
+            let (out, _, status) = shell(path, ["version"])
+            guard status == 0 else { continue }
+            return out.split(separator: "\n").first.map(String.init)?.trimmingCharacters(in: .whitespaces)
+        }
+        return nil
     }
 
     public func verify() throws {

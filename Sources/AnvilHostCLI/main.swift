@@ -9,7 +9,7 @@ struct AnvilHostCLI {
         let cleanArgs = args.filter { $0 != "--json" }
 
         // Auto-build detection: if binary is missing, guide the agent
-        let binaryPath = "/Users/vishalsingh/Documents/v-i-s-h-a-l/swiftanvil/swiftanvil-anvil-host/.build/release/anvil-host"
+        let binaryPath = ProjectPaths.releaseBinary
         let fm = FileManager.default
         if !fm.fileExists(atPath: binaryPath) {
             if jsonMode {
@@ -228,7 +228,7 @@ struct AnvilHostCLI {
         }
 
         // Step 4: Install LaunchAgent
-        let plist = URL(fileURLWithPath: "/Users/vishalsingh/Documents/v-i-s-h-a-l/swiftanvil/swiftanvil-anvil-host/launchd/com.swiftanvil.anvil-host.plist")
+        let plist = ProjectPaths.launchAgentPlist
 
         do {
             try HostProvisioning.shared.install(agentPlistSource: plist)
