@@ -48,4 +48,8 @@ jobs:
 
       - name: CLI smoke
         working-directory: swiftanvil-anvil-host
-        run: swift run anvil-host help
+        run: |
+          # Force a clean release build so ProjectPaths picks up the current source.
+          swift package clean
+          swift build -c release
+          .build/release/anvil-host help
