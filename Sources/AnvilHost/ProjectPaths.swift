@@ -10,33 +10,34 @@ public enum ProjectPaths {
     ///
     /// Resolution order:
     /// 1. `ANVIL_HOST_PROJECT_ROOT` environment variable.
-    /// 2. Search upward from `#file` for a directory containing both
-    ///    `Package.swift` and `launchd/com.swiftanvil.anvil-host.plist`.
-    /// 3. Search upward from the current working directory.
+    /// 2. Search upward from the current working directory (most reliable at
+    ///    runtime because `swift run` and the built binary are executed from
+    ///    the project root).
+    /// 3. Search upward from `#file` as a compile-time fallback.
     public static var projectRoot: String {
         if let envRoot = ProcessInfo.processInfo.environment["ANVIL_HOST_PROJECT_ROOT"],
            isProjectRoot(envRoot) {
             return envRoot
         }
 
-        // Search upward from this source file.
-        let sourceFile = URL(fileURLWithPath: #file)
-        if let root = searchProjectRoot(from: sourceFile) {
-            return root
-        }
-
-        // Fallback: search upward from the current working directory.
+        // Primary: search upward from the current working directory.
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         if let root = searchProjectRoot(from: cwd) {
             return root
         }
 
+        // Fallback: search upward from this source file.
+        let sourceFile = URL(fileURLWithPath: #file)
+        if let root = searchProjectRoot(from: sourceFile) {
+            return root
+        }
+
         // Last resort: assume the source file is inside the project.
-        let sourceBased = sourceFile
+        return sourceFile
             .deletingLastPathComponent() // Sources/AnvilHost
             .deletingLastPathComponent() // Sources
-            .deletingLastPathComponent() // project root (in a simple checkout)
-        return sourceBased.path
+            .deletingLastPathComponent() // project root
+            .path
     }
 
     /// Path to the built binary.
