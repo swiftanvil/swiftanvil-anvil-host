@@ -11,19 +11,36 @@ jobs:
     name: build-and-test (self-hosted)
     runs-on: [self-hosted, macOS, ARM64]
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout anvil-host
+        uses: actions/checkout@v6
+        with:
+          path: swiftanvil-anvil-host
+
+      - name: Checkout anvil-runner sibling
+        uses: actions/checkout@v6
+        with:
+          repository: swiftanvil/swiftanvil-anvil-runner
+          path: swiftanvil-anvil-runner
+
       - name: Select Swift 6 toolchain
         run: |
           if [ -d /Applications/Xcode_16.2.app ]; then
             sudo xcode-select -s /Applications/Xcode_16.2.app
           fi
+
       - name: Tool versions
         run: |
           swift --version
           xcodebuild -version
+
       - name: Build
+        working-directory: swiftanvil-anvil-host
         run: swift build
+
       - name: Test
+        working-directory: swiftanvil-anvil-host
         run: swift test
+
       - name: CLI smoke
+        working-directory: swiftanvil-anvil-host
         run: swift run anvil-host help
