@@ -9,7 +9,7 @@ struct AnvilHostCLI {
         let cleanArgs = args.filter { $0 != "--json" }
 
         // Auto-build detection: if binary is missing, guide the agent
-        let binaryPath = "/Users/vishalsingh/Documents/v-i-s-h-a-l/swiftanvil/swiftanvil-anvil-host/.build/release/anvil-host"
+        let binaryPath = ProjectPaths.releaseBinary
         let fm = FileManager.default
         if !fm.fileExists(atPath: binaryPath) {
             if jsonMode {
@@ -213,6 +213,21 @@ struct AnvilHostCLI {
         do {
             try TailscaleSetup.shared.verify()
             results["tailscale"] = "ok"
+        } catch let authError as TailscaleSetupError {
+            switch authError {
+            case .notAuthenticated(let url):
+                results["tailscale"] = "auth_required"
+                results["tailscale_login_url"] = url
+                errors.append("Tailscale: \(authError)")
+                // Optionally open the login URL on macOS.
+                if !json {
+                    print("🔗 Opening Tailscale login URL: \(url)")
+                    _ = shell("/usr/bin/open", [url])
+                }
+            default:
+                results["tailscale"] = "failed"
+                errors.append("Tailscale: \(authError)")
+            }
         } catch {
             results["tailscale"] = "failed"
             errors.append("Tailscale: \(error)")
@@ -228,7 +243,7 @@ struct AnvilHostCLI {
         }
 
         // Step 4: Install LaunchAgent
-        let plist = URL(fileURLWithPath: "/Users/vishalsingh/Documents/v-i-s-h-a-l/swiftanvil/swiftanvil-anvil-host/launchd/com.swiftanvil.anvil-host.plist")
+        let plist = ProjectPaths.launchAgentPlist
 
         do {
             try HostProvisioning.shared.install(agentPlistSource: plist)
@@ -502,6 +517,28 @@ struct AnvilHostCLI {
         }
         print(string)
     }
+}
+
+private func shell(_ executable: String, _ args: [String]) -> (stdout: String, stderr: String, status: Int32) {
+    let task = Process()
+    task.executableURL = URL(fileURLWithPath: executable)
+    task.arguments = args
+
+    let outPipe = Pipe()
+    let errPipe = Pipe()
+    task.standardOutput = outPipe
+    task.standardError = errPipe
+
+    do {
+        try task.run()
+        task.waitUntilExit()
+    } catch {
+        return ("", error.localizedDescription, -1)
+    }
+
+    let out = String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    let err = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    return (out, err, task.terminationStatus)
 }
 
 private func diskUsage() -> (total: UInt64, free: UInt64, usedPercent: Double)? {

@@ -27,7 +27,6 @@ public struct PowerPolicy: Sendable {
             ("disksleep", "10"),
             ("womp", "1"),
             ("autorestart", "1"),
-            ("panicrestart", "15"),
         ]
 
         for (key, value) in settings {
@@ -46,7 +45,6 @@ public struct PowerPolicy: Sendable {
             ("disksleep", "10"),
             ("womp", "1"),
             ("autorestart", "0"),
-            ("panicrestart", "0"),
         ]
 
         for (key, value) in settings {

@@ -32,7 +32,7 @@ public struct HostStateDetector: Sendable {
     public func detect() async -> HostState {
         // Check if binary is built
         let binaryBuilt = FileManager.default.fileExists(
-            atPath: "/Users/vishalsingh/Documents/v-i-s-h-a-l/swiftanvil/swiftanvil-anvil-host/.build/release/anvil-host"
+            atPath: ProjectPaths.releaseBinary
         )
         
         // Check if installed system-wide
