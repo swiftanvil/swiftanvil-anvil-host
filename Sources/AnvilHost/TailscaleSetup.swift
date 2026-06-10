@@ -8,11 +8,11 @@ public enum TailscaleSetupError: Error, CustomStringConvertible {
     public var description: String {
         switch self {
         case .notInstalled:
-            return "Tailscale is not installed (expected at /Applications/Tailscale.app)"
+            "Tailscale is not installed (expected at /Applications/Tailscale.app)"
         case .notRunning:
-            return "Tailscale is installed but not running"
-        case .versionCheckFailed(let msg):
-            return "Tailscale version check failed: \(msg)"
+            "Tailscale is installed but not running"
+        case let .versionCheckFailed(msg):
+            "Tailscale version check failed: \(msg)"
         }
     }
 }
@@ -23,7 +23,7 @@ public struct TailscaleSetup: Sendable {
     private let appPath = "/Applications/Tailscale.app"
     private let cliPath = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
 
-    private init() {}
+    private init() { }
 
     public var isInstalled: Bool {
         FileManager.default.fileExists(atPath: appPath)

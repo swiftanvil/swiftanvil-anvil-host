@@ -10,18 +10,18 @@ public enum HostProvisioningError: Error, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .launchAgentDirectoryCreationFailed(let error):
-            return "Failed to create LaunchAgents directory: \(error.localizedDescription)"
-        case .plistWriteFailed(let error):
-            return "Failed to write plist: \(error.localizedDescription)"
-        case .launchctlLoadFailed(let code, let msg):
-            return "launchctl load failed (exit \(code)): \(msg)"
-        case .launchctlUnloadFailed(let code, let msg):
-            return "launchctl unload failed (exit \(code)): \(msg)"
-        case .launchctlRemoveFailed(let code, let msg):
-            return "launchctl remove failed (exit \(code)): \(msg)"
+        case let .launchAgentDirectoryCreationFailed(error):
+            "Failed to create LaunchAgents directory: \(error.localizedDescription)"
+        case let .plistWriteFailed(error):
+            "Failed to write plist: \(error.localizedDescription)"
+        case let .launchctlLoadFailed(code, msg):
+            "launchctl load failed (exit \(code)): \(msg)"
+        case let .launchctlUnloadFailed(code, msg):
+            "launchctl unload failed (exit \(code)): \(msg)"
+        case let .launchctlRemoveFailed(code, msg):
+            "launchctl remove failed (exit \(code)): \(msg)"
         case .agentNotFound:
-            return "LaunchAgent plist not found"
+            "LaunchAgent plist not found"
         }
     }
 }
@@ -34,11 +34,12 @@ public struct HostProvisioning: Sendable {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/LaunchAgents", isDirectory: true)
     }
+
     private var plistURL: URL {
         launchAgentsDir.appendingPathComponent("\(label).plist")
     }
 
-    private init() {}
+    private init() { }
 
     public func install(agentPlistSource: URL) throws {
         let fm = FileManager.default
@@ -68,14 +69,14 @@ public struct HostProvisioning: Sendable {
         guard fm.fileExists(atPath: plistURL.path) else { return }
 
         let (_, err, status) = shell("/bin/launchctl", ["unload", "-w", plistURL.path])
-        if status != 0 && !err.contains("Could not find specified service") {
+        if status != 0, !err.contains("Could not find specified service") {
             throw HostProvisioningError.launchctlUnloadFailed(status, err)
         }
 
         try? fm.removeItem(at: plistURL)
 
         let (_, err2, status2) = shell("/bin/launchctl", ["remove", label])
-        if status2 != 0 && !err2.contains("Could not find specified service") {
+        if status2 != 0, !err2.contains("Could not find specified service") {
             throw HostProvisioningError.launchctlRemoveFailed(status2, err2)
         }
     }

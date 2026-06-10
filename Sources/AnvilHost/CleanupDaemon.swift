@@ -41,19 +41,21 @@ public actor CleanupDaemon {
         let commands: [[String]] = [
             ["/usr/bin/sudo", "/usr/sbin/purge"],
             ["/bin/rm", "-rf", "~/Library/Caches/*"],
-            ["/bin/rm", "-rf", "/tmp/anvil-*"],
+            ["/bin/rm", "-rf", "/tmp/anvil-*"]
         ]
 
         for cmd in commands {
-            let (_, _, _) = shell(cmd.first!, Array(cmd.dropFirst()))
+            _ = shell(cmd.first!, Array(cmd.dropFirst()))
         }
     }
 
     private func diskUsage() -> (total: UInt64, free: UInt64, usedPercent: Double)? {
         let url = URL(fileURLWithPath: "/")
-        guard let values = try? url.resourceValues(forKeys: [.volumeTotalCapacityKey, .volumeAvailableCapacityKey]),
-              let total = values.volumeTotalCapacity,
-              let free = values.volumeAvailableCapacity else {
+        guard
+            let values = try? url.resourceValues(forKeys: [.volumeTotalCapacityKey, .volumeAvailableCapacityKey]),
+            let total = values.volumeTotalCapacity,
+            let free = values.volumeAvailableCapacity
+        else {
             return nil
         }
         let used = total - free

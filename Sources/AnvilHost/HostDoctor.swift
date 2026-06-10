@@ -4,7 +4,7 @@ public struct HostCheck: Sendable {
     public let name: String
     public let passed: Bool
     public let message: String
-    
+
     public init(name: String, passed: Bool, message: String) {
         self.name = name
         self.passed = passed
@@ -15,7 +15,7 @@ public struct HostCheck: Sendable {
 public struct HostDoctor: Sendable {
     public static let shared = HostDoctor()
 
-    private init() {}
+    private init() { }
 
     public func runAllChecks() async -> [HostCheck] {
         await withTaskGroup(of: HostCheck.self) { group in
@@ -45,8 +45,10 @@ public struct HostDoctor: Sendable {
 
     public func checkFreeDiskSpace() async -> HostCheck {
         let url = URL(fileURLWithPath: "/")
-        guard let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityKey]),
-              let free = values.volumeAvailableCapacity else {
+        guard
+            let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityKey]),
+            let free = values.volumeAvailableCapacity
+        else {
             return HostCheck(name: "Disk", passed: false, message: "Unable to read disk capacity")
         }
         let freeGB = Double(free) / 1_073_741_824

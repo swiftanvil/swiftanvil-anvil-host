@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    uses: swiftanvil/swiftanvil-enforcement/.github/workflows/swift-ci.yml@v1
+    with:
+      lint-format: true
+      lint-source: true
+      lint-tests: true
+      lint-dependencies: true
+      fail-on-warning: false
+

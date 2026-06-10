@@ -9,7 +9,7 @@ public struct Tool: Sendable {
     public let installMethod: InstallMethod
     public let updateMethod: UpdateMethod
     public let isCritical: Bool
-    
+
     public init(
         name: String,
         description: String,
@@ -56,11 +56,11 @@ public struct ToolStatus: Sendable {
 /// Registry of all tools managed by AnvilHost.
 public struct ToolRegistry: Sendable {
     public static let `default` = ToolRegistry()
-    
+
     public let tools: [Tool]
-    
+
     private init() {
-        self.tools = [
+        tools = [
             Tool(
                 name: "xcode-tools",
                 description: "Xcode Command Line Tools",
@@ -139,14 +139,14 @@ public struct ToolRegistry: Sendable {
                     verifyCommand: "/usr/bin/pgrep -q -x oahd"
                 ),
                 updateMethod: .none
-            ),
+            )
         ]
     }
-    
+
     public func tool(named name: String) -> Tool? {
         tools.first { $0.name == name }
     }
-    
+
     public var criticalTools: [Tool] {
         tools.filter(\.isCritical)
     }

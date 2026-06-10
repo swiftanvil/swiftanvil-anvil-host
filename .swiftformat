@@ -1,0 +1,59 @@
+# SwiftAnvil Canonical SwiftFormat Configuration
+# Version: 1.0.0
+# Source: swiftanvil-enforcement/configs/swiftformat.yml
+#
+# Install locally:
+#   brew install swiftformat
+# Apply to a repo:
+#   swiftformat .
+# Lint (check only):
+#   swiftformat --lint .
+
+# Indentation
+--indent 4
+--indent-case false
+
+# Line length
+--max-width 120
+--wrap-arguments before-first
+--wrap-parameters before-first
+--wrap-collections before-first
+--wrap-conditions before-first
+--wrap-type-aliases before-first
+
+# Commas and whitespace
+--commas inline
+--trim-whitespace always
+--linebreaks lf
+
+# Braces and control flow
+--allman false
+--else-position same-line
+--guard-else next-line
+--empty-braces spaced
+
+# Imports
+--enable sortImports
+--import-grouping alpha,testable-last
+
+# Markup and organization
+--mark-extensions always
+--mark-types always
+--mark-categories true
+--category-mark "MARK: %c"
+--extension-mark "MARK: - %t + %c"
+--organization-mode type
+--organize-types class,actor,struct,enum,protocol
+--class-threshold 20
+--struct-threshold 20
+--enum-threshold 20
+--extension-threshold 20
+
+# Patterns
+--pattern-let hoist
+
+# Swift version
+--swift-version 6.0
+
+# Exclude paths common to SwiftPM projects
+--exclude .build,.swiftpm,DerivedData,docs,.git

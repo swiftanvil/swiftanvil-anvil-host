@@ -1,5 +1,5 @@
-import Foundation
 import AnvilHost
+import Foundation
 
 @main
 struct AnvilHostCLI {
@@ -66,7 +66,7 @@ struct AnvilHostCLI {
         if json {
             printJSON(snapshot.toJSON())
         } else {
-            print(await orchestrator.whatCanIDo())
+            await print(orchestrator.whatCanIDo())
             print("")
             print("Run 'anvil-host agent <action-id>' to execute an action.")
             print("Run 'anvil-host help' for traditional CLI commands.")
@@ -90,7 +90,7 @@ struct AnvilHostCLI {
                 actionID: actionID,
                 success: false,
                 message: "Action '\(actionID)' is not available from state '\(snapshot.state.description)'. " +
-                         "Available actions: \(snapshot.availableActions.map(\.id).joined(separator: ", "))"
+                    "Available actions: \(snapshot.availableActions.map(\.id).joined(separator: ", "))"
             )
             if json {
                 printJSON(result.toJSON())
@@ -115,7 +115,7 @@ struct AnvilHostCLI {
         }
 
         // Confirm destructive actions
-        if action.requiresConfirmation && !json {
+        if action.requiresConfirmation, !json {
             print("⚠️  Action '\(action.name)' requires confirmation.")
             print("   \(action.description)")
             print("   Type 'yes' to proceed: ", terminator: "")
@@ -228,7 +228,10 @@ struct AnvilHostCLI {
         }
 
         // Step 4: Install LaunchAgent
-        let plist = URL(fileURLWithPath: "/Users/vishalsingh/Documents/v-i-s-h-a-l/swiftanvil/swiftanvil-anvil-host/launchd/com.swiftanvil.anvil-host.plist")
+        let plist =
+            URL(
+                fileURLWithPath: "/Users/vishalsingh/Documents/v-i-s-h-a-l/swiftanvil/swiftanvil-anvil-host/launchd/com.swiftanvil.anvil-host.plist"
+            )
 
         do {
             try HostProvisioning.shared.install(agentPlistSource: plist)
@@ -241,7 +244,7 @@ struct AnvilHostCLI {
         // Step 5: Start daemons
         await CleanupDaemon.shared.start()
         results["cleanup_daemon"] = "started"
-        
+
         await ToolUpdateDaemon.shared.start()
         results["update_daemon"] = "started"
 
@@ -255,7 +258,9 @@ struct AnvilHostCLI {
                 print("✅ Host provisioned successfully.")
             } else {
                 print("⚠️  Host provisioned with errors:")
-                for error in errors { print("  - \(error)") }
+                for error in errors {
+                    print("  - \(error)")
+                }
             }
         }
 
@@ -264,19 +269,19 @@ struct AnvilHostCLI {
 
     private static func runDoctor(json: Bool) async {
         let checks = await HostDoctor.shared.runAllChecks()
-        
+
         // Also check tools
         let toolStatuses = await ToolManager.shared.checkCritical()
         let allToolChecks = toolStatuses.map { status -> HostCheck in
             HostCheck(
                 name: "Tool: \(status.tool.name)",
                 passed: status.isInstalled,
-                message: status.isInstalled 
+                message: status.isInstalled
                     ? "\(status.currentVersion ?? "unknown")"
                     : "Not installed"
             )
         }
-        
+
         let allChecks = checks + allToolChecks
 
         if json {
@@ -287,7 +292,7 @@ struct AnvilHostCLI {
             ] as [String: Any] }
             printJSON([
                 "checks": checkDicts,
-                "all_passed": allChecks.allSatisfy { $0.passed }
+                "all_passed": allChecks.allSatisfy(\.passed)
             ])
         } else {
             for check in allChecks {
@@ -296,7 +301,7 @@ struct AnvilHostCLI {
             }
         }
 
-        let failed = !allChecks.allSatisfy { $0.passed }
+        let failed = !allChecks.allSatisfy(\.passed)
         exit(failed ? 1 : 0)
     }
 
@@ -318,7 +323,7 @@ struct AnvilHostCLI {
                     "update_available": $0.updateAvailable
                 ] as [String: Any] }
             ]
-            if let usage = usage {
+            if let usage {
                 status["disk"] = [
                     "total_gb": usage.total / 1_073_741_824,
                     "free_gb": usage.free / 1_073_741_824,
@@ -330,18 +335,20 @@ struct AnvilHostCLI {
             print("Anvil Host Status")
             print("  LaunchAgent: \(HostProvisioning.shared.isInstalled ? "installed" : "not installed")")
             print("  Tailscale: \(TailscaleSetup.shared.isRunning ? "running" : "not running")")
-            
+
             print("  Tools:")
             for toolStatus in toolStatuses {
                 let update = toolStatus.updateAvailable ? " (update available)" : ""
-                print("    \(toolStatus.isInstalled ? "✓" : "✗") \(toolStatus.tool.name): \(toolStatus.currentVersion ?? "not installed")\(update)")
+                print(
+                    "    \(toolStatus.isInstalled ? "✓" : "✗") \(toolStatus.tool.name): \(toolStatus.currentVersion ?? "not installed")\(update)"
+                )
             }
 
             if let sleep = power["sleep"] {
                 print("  Sleep: \(sleep)")
             }
 
-            if let usage = usage {
+            if let usage {
                 print(String(format: "  Disk: %.1f%% used", usage.usedPercent))
             }
         }
@@ -366,7 +373,7 @@ struct AnvilHostCLI {
 
         await CleanupDaemon.shared.stop()
         results["cleanup_daemon"] = "stopped"
-        
+
         await ToolUpdateDaemon.shared.stop()
         results["update_daemon"] = "stopped"
 
@@ -385,9 +392,9 @@ struct AnvilHostCLI {
             print("Usage: anvil-host tools <check|install|install-all|update|update-critical>")
             exit(1)
         }
-        
+
         let manager = ToolManager.shared
-        
+
         switch subcommand {
         case "check":
             let statuses = await manager.checkAll()
@@ -403,10 +410,12 @@ struct AnvilHostCLI {
                 print("Tool Status:")
                 for status in statuses {
                     let update = status.updateAvailable ? " → \(status.latestVersion ?? "?")" : ""
-                    print("  \(status.isInstalled ? "✓" : "✗") \(status.tool.name): \(status.currentVersion ?? "not installed")\(update)")
+                    print(
+                        "  \(status.isInstalled ? "✓" : "✗") \(status.tool.name): \(status.currentVersion ?? "not installed")\(update)"
+                    )
                 }
             }
-            
+
         case "install":
             print("Installing missing critical tools...")
             do {
@@ -419,14 +428,16 @@ struct AnvilHostCLI {
                     ] as [String: Any] })
                 } else {
                     for result in results {
-                        print("  \(result.isInstalled ? "✓" : "✗") \(result.tool.name): \(result.currentVersion ?? "failed")")
+                        print(
+                            "  \(result.isInstalled ? "✓" : "✗") \(result.tool.name): \(result.currentVersion ?? "failed")"
+                        )
                     }
                 }
             } catch {
                 print("Error: \(error)")
                 exit(1)
             }
-            
+
         case "install-all":
             print("Installing all missing tools...")
             do {
@@ -439,14 +450,16 @@ struct AnvilHostCLI {
                     ] as [String: Any] })
                 } else {
                     for result in results {
-                        print("  \(result.isInstalled ? "✓" : "✗") \(result.tool.name): \(result.currentVersion ?? "failed")")
+                        print(
+                            "  \(result.isInstalled ? "✓" : "✗") \(result.tool.name): \(result.currentVersion ?? "failed")"
+                        )
                     }
                 }
             } catch {
                 print("Error: \(error)")
                 exit(1)
             }
-            
+
         case "update":
             print("Updating all tools...")
             do {
@@ -459,14 +472,16 @@ struct AnvilHostCLI {
                     ] as [String: Any] })
                 } else {
                     for result in results {
-                        print("  \(result.isInstalled ? "✓" : "✗") \(result.tool.name): \(result.currentVersion ?? "failed")")
+                        print(
+                            "  \(result.isInstalled ? "✓" : "✗") \(result.tool.name): \(result.currentVersion ?? "failed")"
+                        )
                     }
                 }
             } catch {
                 print("Error: \(error)")
                 exit(1)
             }
-            
+
         case "update-critical":
             print("Updating critical tools...")
             do {
@@ -479,14 +494,16 @@ struct AnvilHostCLI {
                     ] as [String: Any] })
                 } else {
                     for result in results {
-                        print("  \(result.isInstalled ? "✓" : "✗") \(result.tool.name): \(result.currentVersion ?? "failed")")
+                        print(
+                            "  \(result.isInstalled ? "✓" : "✗") \(result.tool.name): \(result.currentVersion ?? "failed")"
+                        )
                     }
                 }
             } catch {
                 print("Error: \(error)")
                 exit(1)
             }
-            
+
         default:
             print("Unknown tools subcommand: \(subcommand)")
             print("Usage: anvil-host tools <check|install|install-all|update|update-critical>")
@@ -495,8 +512,10 @@ struct AnvilHostCLI {
     }
 
     private static func printJSON(_ object: Any) {
-        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
-              let string = String(data: data, encoding: .utf8) else {
+        guard
+            let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
+            let string = String(data: data, encoding: .utf8)
+        else {
             print("{\"error\": \"failed to serialize JSON\"}")
             return
         }
@@ -506,9 +525,11 @@ struct AnvilHostCLI {
 
 private func diskUsage() -> (total: UInt64, free: UInt64, usedPercent: Double)? {
     let url = URL(fileURLWithPath: "/")
-    guard let values = try? url.resourceValues(forKeys: [.volumeTotalCapacityKey, .volumeAvailableCapacityKey]),
-          let total = values.volumeTotalCapacity,
-          let free = values.volumeAvailableCapacity else {
+    guard
+        let values = try? url.resourceValues(forKeys: [.volumeTotalCapacityKey, .volumeAvailableCapacityKey]),
+        let total = values.volumeTotalCapacity,
+        let free = values.volumeAvailableCapacity
+    else {
         return nil
     }
     let used = total - free

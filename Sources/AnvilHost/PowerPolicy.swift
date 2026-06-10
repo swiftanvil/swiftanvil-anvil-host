@@ -6,10 +6,10 @@ public enum PowerPolicyError: Error, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .pmsetFailed(let code, let msg):
-            return "pmset failed (exit \(code)): \(msg)"
-        case .caffeinateFailed(let code, let msg):
-            return "caffeinate failed (exit \(code)): \(msg)"
+        case let .pmsetFailed(code, msg):
+            "pmset failed (exit \(code)): \(msg)"
+        case let .caffeinateFailed(code, msg):
+            "caffeinate failed (exit \(code)): \(msg)"
         }
     }
 }
@@ -17,7 +17,7 @@ public enum PowerPolicyError: Error, CustomStringConvertible {
 public struct PowerPolicy: Sendable {
     public static let shared = PowerPolicy()
 
-    private init() {}
+    private init() { }
 
     /// Prevent system sleep and enable auto-restart on power loss.
     public func apply() throws {
@@ -27,7 +27,7 @@ public struct PowerPolicy: Sendable {
             ("disksleep", "10"),
             ("womp", "1"),
             ("autorestart", "1"),
-            ("panicrestart", "15"),
+            ("panicrestart", "15")
         ]
 
         for (key, value) in settings {
@@ -46,7 +46,7 @@ public struct PowerPolicy: Sendable {
             ("disksleep", "10"),
             ("womp", "1"),
             ("autorestart", "0"),
-            ("panicrestart", "0"),
+            ("panicrestart", "0")
         ]
 
         for (key, value) in settings {

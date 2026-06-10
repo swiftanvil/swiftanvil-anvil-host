@@ -1,0 +1,10 @@
+# SwiftAnvil project configuration
+# See style.guide for canonical style and SOLID rules.
+
+lint:
+  structure:
+    # TODO: Tighten after refactoring legacy files.
+    max_lines: 900
+    max_top_level_types: 12
+    mixed_type_kinds: 4
+

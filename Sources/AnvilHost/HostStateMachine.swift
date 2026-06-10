@@ -4,21 +4,21 @@ import Foundation
 
 /// Represents the current provisioning state of the host.
 public enum HostState: String, Sendable, CaseIterable {
-    case freshClone      = "fresh-clone"
-    case built           = "built"
-    case provisioned     = "provisioned"
+    case freshClone = "fresh-clone"
+    case built
+    case provisioned
     case productionReady = "production-ready"
-    
+
     public var description: String {
         switch self {
         case .freshClone:
-            return "Repository cloned but not built"
+            "Repository cloned but not built"
         case .built:
-            return "Binary built but host not provisioned"
+            "Binary built but host not provisioned"
         case .provisioned:
-            return "Host provisioned (LaunchAgent, power policy, daemons)"
+            "Host provisioned (LaunchAgent, power policy, daemons)"
         case .productionReady:
-            return "Fully operational — runners can be configured"
+            "Fully operational — runners can be configured"
         }
     }
 }
@@ -26,57 +26,57 @@ public enum HostState: String, Sendable, CaseIterable {
 /// Detects the current state of the host by inspecting the filesystem and system.
 public struct HostStateDetector: Sendable {
     public static let shared = HostStateDetector()
-    
-    private init() {}
-    
+
+    private init() { }
+
     public func detect() async -> HostState {
         // Check if binary is built
         let binaryBuilt = FileManager.default.fileExists(
             atPath: "/Users/vishalsingh/Documents/v-i-s-h-a-l/swiftanvil/swiftanvil-anvil-host/.build/release/anvil-host"
         )
-        
+
         // Check if installed system-wide
         let systemWide = FileManager.default.fileExists(atPath: "/usr/local/bin/anvil-host")
-        
+
         // Check LaunchAgent
         let launchAgentPath = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/LaunchAgents/com.swiftanvil.anvil-runner.plist")
         let launchAgentInstalled = FileManager.default.fileExists(atPath: launchAgentPath.path)
-        
+
         // Check power policy (sleep disabled = provisioned)
         let powerProvisioned = await isPowerProvisioned()
-        
+
         if !binaryBuilt {
             return .freshClone
         }
-        
+
         if !launchAgentInstalled || !powerProvisioned {
             return .built
         }
-        
+
         if systemWide {
             return .productionReady
         }
-        
+
         return .provisioned
     }
-    
+
     private func isPowerProvisioned() async -> Bool {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
         task.arguments = ["-g"]
-        
+
         let outPipe = Pipe()
         task.standardOutput = outPipe
         task.standardError = Pipe()
-        
+
         do {
             try task.run()
             task.waitUntilExit()
         } catch {
             return false
         }
-        
+
         let out = String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
         guard task.terminationStatus == 0 else { return false }
         // Sleep disabled means sleep=0 in active profile
@@ -95,7 +95,7 @@ public struct HostAction: Sendable, Identifiable {
     public let requiresSudo: Bool
     public let parameters: [HostActionParameter]
     public let availableFromStates: [HostState]
-    
+
     public init(
         id: String,
         name: String,
@@ -122,7 +122,7 @@ public struct HostActionParameter: Sendable {
     public let description: String
     public let required: Bool
     public let defaultValue: String?
-    
+
     public enum ParameterType: String, Sendable {
         case string
         case boolean
@@ -130,7 +130,7 @@ public struct HostActionParameter: Sendable {
         case path
         case url
     }
-    
+
     public init(
         name: String,
         type: ParameterType,
@@ -149,7 +149,7 @@ public struct HostActionParameter: Sendable {
 /// Discovers all available actions from the current state.
 public struct HostActionDiscovery: Sendable {
     public static let shared = HostActionDiscovery()
-    
+
     private let allActions: [HostAction] = [
         HostAction(
             id: "build",
@@ -212,19 +212,21 @@ public struct HostActionDiscovery: Sendable {
             requiresConfirmation: true,
             requiresSudo: true,
             availableFromStates: [.provisioned, .productionReady]
-        ),
+        )
     ]
-    
-    private init() {}
-    
+
+    private init() { }
+
     /// Returns all actions available from the given state.
     public func availableActions(from state: HostState) -> [HostAction] {
         allActions.filter { $0.availableFromStates.contains(state) }
     }
-    
+
     /// Returns all possible actions (for documentation).
-    public func allActionsList() -> [HostAction] { allActions }
-    
+    public func allActionsList() -> [HostAction] {
+        allActions
+    }
+
     /// Finds an action by ID.
     public func action(id: String) -> HostAction? {
         allActions.first { $0.id == id }
@@ -240,7 +242,7 @@ public struct HostActionResult: Sendable {
     public let message: String
     public let details: [String: String]
     public let newState: HostState?
-    
+
     public init(
         actionID: String,
         success: Bool,
@@ -258,8 +260,8 @@ public struct HostActionResult: Sendable {
 
 // MARK: - JSON Serialization
 
-extension HostState {
-    public func toJSON() -> [String: Any] {
+public extension HostState {
+    func toJSON() -> [String: Any] {
         [
             "state": rawValue,
             "description": description,
@@ -268,8 +270,8 @@ extension HostState {
     }
 }
 
-extension HostAction {
-    public func toJSON() -> [String: Any] {
+public extension HostAction {
+    func toJSON() -> [String: Any] {
         [
             "id": id,
             "name": name,
@@ -281,8 +283,8 @@ extension HostAction {
     }
 }
 
-extension HostActionParameter {
-    public func toJSON() -> [String: Any] {
+public extension HostActionParameter {
+    func toJSON() -> [String: Any] {
         var dict: [String: Any] = [
             "name": name,
             "type": type.rawValue,
@@ -296,8 +298,8 @@ extension HostActionParameter {
     }
 }
 
-extension HostActionResult {
-    public func toJSON() -> [String: Any] {
+public extension HostActionResult {
+    func toJSON() -> [String: Any] {
         var dict: [String: Any] = [
             "action_id": actionID,
             "success": success,
